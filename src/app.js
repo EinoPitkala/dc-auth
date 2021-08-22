@@ -11,11 +11,19 @@ const discordStrategy = require('./strategies/discordstrategy')
 //passport
 const passport = require('passport')
 
+
+//Database
+const db = require('./database/database')
+
 //Get port
 const PORT = process.env.PORT || 3001;
 
 //Routes
 const authRouter = require('./routes/auth')
+
+
+db.then(() => console.log("Connected to database")).catch(() => console.log("Error connecting to database"))
+
 
 
 app.use(session({
