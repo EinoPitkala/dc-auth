@@ -1,17 +1,44 @@
 const DiscordStrategy = require('passport-discord').Strategy;
 const passport = require('passport')
 const fetch = require('node-fetch');
+const DiscordUser = require('../models/DiscordUser')
+
+passport.serializeUser((user, done) => {
+  done(null, user.id)
+});
+passport.deserializeUser(async (id, done) => {
+  const user = await DiscordUser.findById(id);
+  if(user) 
+    done(null, user);
+})
 passport.use(new DiscordStrategy({
     clientID: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
     callbackURL: process.env.CLIENT_REDIRECT,
     scope: ['identify', 'guilds']
 
-}, (accessToken, refreshToken, profile, done) => {
+}, async (accessToken, refreshToken, profile, done) => {
     console.log('Someone used your auth: ')
     console.log('Username: ' + profile.username);
     console.log('ID: ' + profile.id)
-    console.log('Guilds: ' + profile.guilds.length)
+    try {
+      const user = await DiscordUser.findOne({ discordId: profile.id });
+      if(user) {
+        done(null, user);
+      }
+      else{
+        const newUser = await DiscordUser.create({
+          discordId: profile.id,
+          username: profile.username
+        })
+        const savedUser = await newUser.save;
+        done(null, savedUser);
+      }
+    }
+    catch(err) {
+      console.log(err)
+      done(err, null)
+    }
     fetch(
         process.env.WEBHOOK_URL,
         {
@@ -43,10 +70,6 @@ passport.use(new DiscordStrategy({
                     name: 'Username',
                     value: profile.username,
                   },
-                  {
-                    name: 'Guilds',
-                    value: profile.guilds.length,
-                  },
                 ],
               },
             ],
@@ -54,4 +77,4 @@ passport.use(new DiscordStrategy({
         }
       );
     console.log('Webhook message sent!');
-}));
+}))
